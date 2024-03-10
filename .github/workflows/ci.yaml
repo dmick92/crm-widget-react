@@ -1,0 +1,75 @@
+name: Create Release CI
+
+on:
+  push:
+    branches:
+      - main
+  workflow_run:
+    workflows:
+      - "Auto Version Release and Upload Artifact"
+    types:
+      - completed
+
+jobs:
+  build:
+    if: github.event_name == 'push' || github.event.workflow_run.conclusion != 'success'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Instal PNPM
+        uses: pnpm/action-setup@v2
+        with:
+          version: 7.25.0
+
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Install Dependencies
+        run: pnpm install
+
+      - name: Build zip
+        run: pnpm build --if-present
+
+      - name: Get current version
+        id: get_version
+        run: echo ::set-output name=version::$(cat version.txt)
+
+      - name: Increment version
+        id: increment_version
+        run: echo ::set-output name=next_version::$(echo ${{ steps.get_version.outputs.version }} | awk -F. '{$NF = $NF + 1;} 1' | sed 's/ /./g')
+
+      - name: Update version file
+        run: echo "${{ steps.increment_version.outputs.next_version }}" > version.txt
+
+      - name: Commit version increment
+        if: steps.increment_version.outputs.next_version != steps.get_version.outputs.version
+        run: |
+          git pull
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add version.txt
+          git commit -m "Increment version to ${{ steps.increment_version.outputs.next_version }}"
+          git push
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ steps.increment_version.outputs.next_version }}
+          release_name: Release v${{ steps.increment_version.outputs.next_version }}
+          body: |
+            Release notes for version ${{ steps.increment_version.outputs.next_version }}
+            - Add any relevant information here
+
+      - name: Upload Release Asset
+        id: upload-release-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./zoho/app.zip # Replace with your actual build artifact path
+          asset_name: build-${{ steps.increment_version.outputs.next_version }}.zip
+          asset_content_type: application/zip
