@@ -7,10 +7,9 @@ on:
 
 jobs:
   your-job-name:
-    if: |
-      github.event.pull_request.merged == true &&
-      contains(github.event.pull_request.title, 'chore(release): version packages')
+    if: github.event.pull_request.merged == true && contains(github.event.pull_request.title, 'chore(release): version packages')
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
