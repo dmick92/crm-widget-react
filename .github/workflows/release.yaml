@@ -4,9 +4,9 @@
 name: Release
 
 on:
-  pull_request:
+  push:
     branches:
-      - "*"
+      - main
 
 jobs:
   release:
@@ -24,8 +24,8 @@ jobs:
       - name: Install Dependencies
         run: pnpm install
 
-      - name: Build zip
-        run: pnpm build --if-present
+      #   - name: Build zip
+      #     run: pnpm build --if-present
 
       - name: Create Version PR
         id: changesets
